@@ -1,0 +1,13 @@
+# Terraform working directory (contains binaries)
+.terraform/
+
+# Local state files
+*.tfstate
+*.tfstate.*
+
+# Sensitive variables
+*.tfvars
+*.tfvars.json
+
+# Logs
+*.log
