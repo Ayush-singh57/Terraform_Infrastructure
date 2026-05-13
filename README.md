@@ -2,18 +2,10 @@
 
 <br/>
 
-```
- █████╗ ███╗   ███╗ █████╗ ███████╗ ██████╗ ███╗   ██╗ █████╗
-██╔══██╗████╗ ████║██╔══██╗╚══███╔╝██╔═══██╗████╗  ██║██╔══██╗
-███████║██╔████╔██║███████║  ███╔╝ ██║   ██║██╔██╗ ██║███████║
-██╔══██║██║╚██╔╝██║██╔══██║ ███╔╝  ██║   ██║██║╚██╗██║██╔══██║
-██║  ██║██║ ╚═╝ ██║██║  ██║███████╗╚██████╔╝██║ ╚████║██║  ██║
-╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝
-```
 
 ### ☁️ E-Commerce Cloud Infrastructure
 
-**Dedicated AWS Infrastructure Repository — MERN Stack Platform**
+** AWS Infrastructure Repository**
 
 <br/>
 
@@ -234,11 +226,5 @@ terraform {
 ---
 
 <div align="center">
-
-<br/>
-
-Built with ☁️ on **AWS** &nbsp;·&nbsp; IaC by **Terraform** &nbsp;·&nbsp; Part of the **Amazona** Platform
-
-<br/>
 
 </div>
