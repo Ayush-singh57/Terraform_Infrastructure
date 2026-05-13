@@ -1,225 +1,221 @@
-<div align="center">
+🚀 Overview
 
-```
-    _   __  ______   ___   ______ ____  _   ______
-   / | / / / ____/  /   | /_  __// __ \/ | / / __ |
-  /  |/ / / __/    / /| |  / /  / / / /  |/ / / / /
- / /|  / / /___   / ___ | / /  / /_/ / /|  / /_/ /
-/_/ |_/ /_____/  /_/  |_|/_/   \____/_/ |_/\____/
-```
+This repository contains the completely decoupled AWS cloud infrastructure for the Amazona e-commerce platform.
 
-# ☁️ Amazona E-Commerce Infrastructure
+By strictly following the Dedicated Infrastructure Repository pattern, the Terraform configurations are isolated from the application code. This ensures zero-downtime deployments, independent CI/CD pipelines, and a minimal blast radius for infrastructure updates.
 
-**Infrastructure as Code for the Amazona MERN-Stack Platform**
+📊 Architecture & Traffic Flow
 
-[![Terraform](https://img.shields.io/badge/Terraform-≥1.0-7B42BC?style=flat-square&logo=terraform&logoColor=white)](https://www.terraform.io/)
-[![AWS](https://img.shields.io/badge/AWS-Cloud-FF9900?style=flat-square&logo=amazonaws&logoColor=white)](https://aws.amazon.com/)
-[![ECS Fargate](https://img.shields.io/badge/ECS-Fargate-FF9900?style=flat-square&logo=amazonaws&logoColor=white)](https://aws.amazon.com/fargate/)
-[![CloudFront](https://img.shields.io/badge/CloudFront-CDN-FF9900?style=flat-square&logo=amazonaws&logoColor=white)](https://aws.amazon.com/cloudfront/)
-[![Pattern](https://img.shields.io/badge/Pattern-Dedicated%20IaC%20Repo-0080FF?style=flat-square)](https://developer.hashicorp.com/terraform/tutorials)
+The following flowchart illustrates the lifecycle of a user request, demonstrating how the CloudFront Reverse Proxy securely routes traffic to either the static frontend or the dynamic serverless backend.
 
-> This repository strictly follows the **Dedicated Infrastructure Repository** pattern — separating Terraform configurations from application code to ensure safer deployments, decoupled CI/CD pipelines, and isolated state management.
+graph TD
+    %% Define User
+    User((🧑‍💻 User Browser))
 
-</div>
+    %% Define AWS Cloud
+    subgraph "AWS Cloud (ap-south-1)"
+        CF[🌐 CloudFront CDN <br/> <i>(Reverse Proxy)</i>]
+        
+        subgraph "Frontend Domain"
+            S3[(📦 Private S3 Bucket <br/> <i>React SPA</i>)]
+        end
+        
+        subgraph "Backend Domain"
+            ALB[🔀 Application Load Balancer]
+            ECS[⚙️ ECS Fargate <br/> <i>Node.js / Express</i>]
+        end
+    end
 
----
+    %% External
+    DB[(🍃 MongoDB Atlas)]
 
-## 🏗️ Architecture Overview
+    %% Connections
+    User -- "HTTPS Request" --> CF
+    CF -- "Path: /* \n(Origin Access Control)" --> S3
+    CF -- "Path: /api/* \n(Secure Tunnel)" --> ALB
+    ALB -- "Port 80" --> ECS
+    ECS -- "Mongoose Auth" --> DB
 
-The infrastructure is divided into **two distinct domains** to minimize blast radius and ensure independent scalability.
+    %% Styling
+    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white;
+    classDef db fill:#4ea94b,stroke:#3c823a,stroke-width:2px,color:white;
+    class CF,S3,ALB,ECS aws;
+    class DB db;
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Internet / Users                             │
-└───────────────────────────────┬─────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Amazon CloudFront (CDN)                          │
-│                                                                     │
-│    ┌─────────────────────┐       ┌──────────────────────────────┐  │
-│    │   Path: /*          │       │   Path: /api/*               │  │
-│    │   → S3 React SPA    │       │   → Backend ALB (Proxy)      │  │
-│    └─────────────────────┘       └──────────────────────────────┘  │
-└──────────────┬────────────────────────────────┬─────────────────────┘
-               │                                │
-               ▼                                ▼
-┌──────────────────────────┐    ┌───────────────────────────────────┐
-│    Amazon S3 (Private)   │    │        Amazon VPC                 │
-│                          │    │  ┌─────────────────────────────┐  │
-│  React Static Assets     │    │  │   Application Load Balancer │  │
-│  (OAC Protected)         │    │  └──────────────┬──────────────┘  │
-│                          │    │                 │                  │
-└──────────────────────────┘    │  ┌──────────────▼──────────────┐  │
-                                │  │     ECS Fargate Cluster      │  │
-                                │  │   (Node.js / Express API)   │  │
-                                │  └─────────────────────────────┘  │
-                                │                                    │
-                                │  ┌─────────────────────────────┐  │
-                                │  │     Amazon ECR              │  │
-                                │  │   (Docker Image Registry)   │  │
-                                │  └─────────────────────────────┘  │
-                                └───────────────────────────────────┘
-```
 
----
+The Reverse Proxy Advantage: This design allows the backend ALB to "piggyback" on CloudFront's default wildcard SSL certificate, providing end-to-end encryption and a unified API domain (d3vno...cloudfront.net/api) out of the box without purchasing custom domains.
 
-### 1. 🖥️ Backend Infrastructure (`/backend_terraform`)
+🏗️ Infrastructure Components
 
-Provisions the networking and compute resources required to run the Node.js/Express API.
+The environment is split into two distinct, independently manageable domains.
 
-| Resource | Service | Purpose |
-|---|---|---|
-| 🌐 | **Amazon VPC** | Custom virtual network with public/private subnets |
-| 🐳 | **Amazon ECS (Fargate)** | Serverless container orchestration for the Node.js backend |
-| 📦 | **Amazon ECR** | Container registry for storing backend Docker images |
-| ⚖️ | **Application Load Balancer** | Distributes incoming API traffic across ECS tasks |
+Domain
 
----
+Component
 
-### 2. 🌍 Frontend Infrastructure (`/frontend_terraform`)
+AWS Service
 
-Provisions the secure, globally distributed hosting environment for the React SPA.
+Purpose
 
-| Resource | Service | Purpose |
-|---|---|---|
-| 🗂️ | **Amazon S3** | Private bucket storing the compiled React static assets |
-| 🚀 | **Amazon CloudFront** | Global CDN serving the application over HTTPS |
-| 🔒 | **Origin Access Control (OAC)** | Secures S3 — only accessible via CloudFront |
+Backend
 
----
+Networking
 
-## 🔐 The CloudFront Reverse Proxy
+VPC, Subnets, NAT
 
-To solve browser **Mixed Content** (HTTP vs HTTPS) security blocks — without requiring a custom domain for the ALB — this architecture uses **CloudFront as a reverse proxy**.
+Custom virtual network isolating the compute resources. Private subnets protect the API servers, while NAT Gateways allow outbound image pulls.
 
-```
-  User Request
-       │
-       ▼
-  CloudFront Distribution
-  ┌────────────────────────────────────────────────┐
-  │                                                │
-  │   /*       ──────────────▶  S3 Bucket          │
-  │            (React SPA)                         │
-  │                                                │
-  │   /api/*   ──────────────▶  Backend ALB        │
-  │            (Node.js API)   (HTTPS tunnel)      │
-  │                                                │
-  └────────────────────────────────────────────────┘
-```
+Backend
 
-This pattern:
-- ✅ Eliminates mixed-content browser errors
-- ✅ Avoids the cost of a custom ACM certificate on the ALB
-- ✅ Keeps all traffic under a single HTTPS origin
-- ✅ Enables path-based routing at the CDN layer
+Compute
 
----
+ECS (Fargate)
 
-## 📁 Repository Structure
+Fully serverless container orchestration running Node.js. No EC2 instances to manage or patch.
 
-```
-amazona-infrastructure/
+Backend
+
+Registry
+
+ECR
+
+Private container registry for securely storing backend Docker images.
+
+Backend
+
+Traffic Routing
+
+ALB
+
+Application Load Balancer distributes API traffic across healthy Fargate tasks.
+
+Frontend
+
+Storage
+
+S3
+
+Private bucket storing the compiled React static assets.
+
+Frontend
+
+CDN / Proxy
+
+CloudFront
+
+Global Content Delivery Network with edge caching. Also acts as the API reverse proxy.
+
+Frontend
+
+Security
+
+OAC
+
+Origin Access Control locks down the S3 bucket so it can only be accessed via CloudFront.
+
+📁 Repository Structure
+
+.
+├── backend_terraform/
+│   ├── main.tf          # ECS, VPC, ALB, and Security Groups
+│   ├── variables.tf     # Configurable backend variables
+│   └── outputs.tf       # Exposes the ALB DNS URL
 │
-├── 📂 backend_terraform/
-│   ├── main.tf          # ECS, VPC, ALB configurations
-│   ├── variables.tf     # Backend input variables
-│   └── outputs.tf       # Outputs: alb_dns_name
-│
-└── 📂 frontend_terraform/
-    ├── main.tf          # S3, CloudFront, OAC configurations
-    ├── variables.tf     # Frontend input variables
-    ├── outputs.tf       # Outputs: cloudfront_domain_name
-    └── modules/
-        └── cdn/         # Reusable CloudFront/CDN modules
-```
+└── frontend_terraform/
+    ├── main.tf          # S3, CloudFront, and OAC configs
+    ├── variables.tf     # Configurable frontend variables
+    ├── outputs.tf       # Exposes the live CDN Domain
+    └── modules/         # Reusable CDN Terraform modules
 
----
 
-## 🚀 Deployment Order
+⚙️ Deployment Protocol (Strict Order)
 
-> ⚠️ **Critical:** The environments are decoupled and **must be applied in order**. The Frontend CloudFront distribution requires the Backend ALB's DNS URL to configure the `/api/*` reverse proxy.
+Because the frontend proxy dynamically routes API traffic to the backend, the environments must be applied in the following order:
 
-### Step 1 — Provision the Backend
+Step 1: Provision the Backend
 
-```bash
 cd backend_terraform
 terraform init
 terraform apply -auto-approve
-```
 
-Wait for completion, then **copy the output value:**
 
-```
-Outputs:
-  alb_dns_name = "amazona-alb-XXXXXXXXXX.us-east-1.elb.amazonaws.com"
-```
+Wait for completion and copy the outputted alb_dns_name.
 
----
+Step 2: Provision the Frontend
 
-### Step 2 — Provision the Frontend
-
-```bash
 cd ../frontend_terraform
 terraform init
-```
 
-Before applying, pass the `alb_dns_name` into your variables so CloudFront knows where to route API traffic:
 
-```bash
-terraform apply -auto-approve \
-  -var="alb_dns_name=amazona-alb-XXXXXXXXXX.us-east-1.elb.amazonaws.com"
-```
+Provide the alb_dns_name when prompted (or via a .tfvars file) to establish the reverse proxy routing rules, then apply:
 
-Or set it in `terraform.tfvars`:
-
-```hcl
-# frontend_terraform/terraform.tfvars
-alb_dns_name = "amazona-alb-XXXXXXXXXX.us-east-1.elb.amazonaws.com"
-```
-
-Then run:
-
-```bash
 terraform apply -auto-approve
-```
 
----
 
-## 🛠️ State Management
+🔐 CI/CD Pipeline Secrets
 
-| Mode | Status | Notes |
-|---|---|---|
-| **Local** | ✅ Current | `terraform.tfstate` stored locally per module |
-| **Remote (S3 + DynamoDB)** | 🔜 Recommended for teams | Enables state locking and collaboration |
+To enable the automated GitHub Actions pipelines, the following secrets must be added to the respective application repositories:
 
-To migrate to a remote backend, add the following to each module's `main.tf`:
+Backend Repository Secrets
 
-```hcl
-terraform {
-  backend "s3" {
-    bucket         = "amazona-terraform-state"
-    key            = "backend/terraform.tfstate"   # or frontend/
-    region         = "us-east-1"
-    dynamodb_table = "amazona-terraform-locks"
-    encrypt        = true
-  }
-}
-```
+Secret Name
 
----
+Description
 
-## 🧩 Prerequisites
+AWS_ACCESS_KEY_ID
 
-- [Terraform](https://developer.hashicorp.com/terraform/install) `>= 1.0`
-- [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate IAM permissions
-- Docker (for building and pushing backend images to ECR)
+AWS IAM User access key for Terraform/Deployment.
 
----
+AWS_SECRET_ACCESS_KEY
 
-<div align="center">
+AWS IAM User secret key.
 
-Built with ☁️ on AWS &nbsp;•&nbsp; IaC by Terraform &nbsp;•&nbsp; Part of the **Amazona** platform
+ECR_REPOSITORY
 
-</div>
+Name of the Amazon ECR repository (from Terraform output).
+
+ECS_CLUSTER_NAME
+
+Name of the ECS cluster.
+
+ECS_SERVICE_NAME
+
+Name of the ECS service managing the tasks.
+
+ECS_TASK_FAMILY
+
+The family name of the ECS Task Definition.
+
+DOCKER_PASSWORD
+
+Docker Hub Personal Access Token (prevents rate limiting).
+
+DOCKER_USERNAME
+
+Docker Hub username.
+
+Frontend Repository Secrets
+
+Secret Name
+
+Description
+
+AWS_ACCESS_KEY_ID
+
+AWS IAM User access key.
+
+AWS_SECRET_ACCESS_KEY
+
+AWS IAM User secret key.
+
+SECRET_S3_BUCKET_NAME
+
+The private S3 bucket name (from Terraform output).
+
+SECRET_CLOUDFRONT_DIST_ID
+
+The CloudFront Distribution ID (used for cache invalidation).
+
+🛠️ State Management
+
+Currently configured for local state execution (terraform.tfstate). For multi-developer collaboration, this repository is ready to be upgraded to an Amazon S3 backend with DynamoDB state locking.
