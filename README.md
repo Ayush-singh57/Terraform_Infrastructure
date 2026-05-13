@@ -3,9 +3,9 @@
 <br/>
 
 
-### ☁️ E-Commerce Cloud Infrastructure
+###  E-Commerce Cloud Infrastructure
 
-** AWS Infrastructure Repository**
+**AWS Infrastructure Repository**
 
 <br/>
 
@@ -226,5 +226,6 @@ terraform {
 ---
 
 <div align="center">
+
 
 </div>
